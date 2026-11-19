@@ -1,1 +1,5 @@
-description: A starter application for Ninja Van built on Substrait. It provides internal tooling and API endpoints for team workflows.
+description: >
+  Stock Drift Check for the Control Tower team at Ninja Mart. Upload the AC2, ITO and AMAST
+  stock exports for warehouse 1A and see which products disagree between the systems, where
+  the numbers drifted, and which are likely to cause failed orders or lost sales. All
+  comparison happens in the browser; no stock data is stored.

@@ -1,0 +1,33 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Stock Drift Check",
+    "version": "1.0.0",
+    "description": "Serves the Stock Drift Check web page for warehouse 1A. All stock comparison happens in the browser, so the server only answers health checks and basic app info."
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Readiness check used by the platform. Returns the text \"ok\" with status 200.",
+        "responses": { "200": { "description": "The server is up.", "content": { "text/plain": { "schema": { "type": "string", "example": "ok" } } } } }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "summary": "Same readiness check, reachable under the /api prefix.",
+        "responses": { "200": { "description": "The server is up.", "content": { "text/plain": { "schema": { "type": "string", "example": "ok" } } } } }
+      }
+    },
+    "/api/info": {
+      "get": {
+        "summary": "Returns the app name and the warehouse it covers.",
+        "responses": {
+          "200": {
+            "description": "App information.",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "app": { "type": "string", "example": "stock-drift-check" }, "warehouse": { "type": "string", "example": "1A" } } } } }
+          }
+        }
+      }
+    }
+  }
+}

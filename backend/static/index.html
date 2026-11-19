@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock Drift Check · Ninja Mart</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #1c2330; --muted: #5d6879; --line: #dfe3ea;
+    --accent: #1f5fd6; --accent-ink: #ffffff;
+    --ok: #17794a; --ok-bg: #e4f4ea;
+    --bad: #b3261e; --bad-bg: #fbe7e5;
+    --warn: #8a5a00; --warn-bg: #fdf0d5;
+    --info: #2b4c8c; --info-bg: #e6edfa;
+    --row: #f9fafc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --card: #1a1f28; --ink: #e8ecf3; --muted: #9aa6b8; --line: #2c3442;
+      --accent: #5b92f5; --accent-ink: #0b1220;
+      --ok: #62d09a; --ok-bg: #15301f;
+      --bad: #ff8d84; --bad-bg: #3a1c1a;
+      --warn: #f2c561; --warn-bg: #3a2e12;
+      --info: #9cbcf5; --info-bg: #1b2a47;
+      --row: #1e242e;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  header { padding: 22px 24px 8px; max-width: 1200px; margin: 0 auto; }
+  h1 { margin: 0; font-size: 22px; letter-spacing: -0.01em; }
+  .sub { margin: 4px 0 0; color: var(--muted); }
+  main { max-width: 1200px; margin: 0 auto; padding: 8px 24px 48px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-top: 16px; }
+  h2 { margin: 0 0 4px; font-size: 16px; }
+  .step { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  .slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .slot { border: 2px dashed var(--line); border-radius: 10px; padding: 14px; cursor: pointer;
+    transition: border-color .15s, background .15s; min-height: 132px; display: flex; flex-direction: column; gap: 4px; }
+  .slot:hover, .slot.drag { border-color: var(--accent); background: var(--info-bg); }
+  .slot:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .slot.ok { border-style: solid; border-color: var(--ok); background: var(--ok-bg); }
+  .slot.err { border-style: solid; border-color: var(--bad); background: var(--bad-bg); }
+  .slot .t { font-weight: 600; }
+  .slot .h { color: var(--muted); font-size: 13px; }
+  .slot .s { margin-top: auto; font-size: 13px; word-break: break-word; }
+  .slot.ok .s { color: var(--ok); }
+  .slot.err .s { color: var(--bad); }
+  .slot input { display: none; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 16px; }
+  button { font: inherit; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    padding: 9px 16px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  label.inl { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); font-size: 14px; }
+  input[type=date], input[type=search] { font: inherit; color: var(--ink); background: var(--card);
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+  input[type=search] { min-width: 240px; }
+  .privacy { color: var(--muted); font-size: 13px; margin: 12px 0 0; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .stat { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--card); }
+  .stat .n { font-size: 28px; font-weight: 700; line-height: 1.1; }
+  .stat .l { color: var(--muted); font-size: 13px; }
+  .stat.over { background: var(--bad-bg); border-color: var(--bad); } .stat.over .n { color: var(--bad); }
+  .stat.under { background: var(--warn-bg); border-color: var(--warn); } .stat.under .n { color: var(--warn); }
+  .stat.good .n { color: var(--ok); }
+  .notes { margin-top: 12px; display: grid; gap: 6px; }
+  .note { font-size: 13px; padding: 8px 12px; border-radius: 8px; background: var(--info-bg); color: var(--info); }
+  .note.warn { background: var(--warn-bg); color: var(--warn); }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 14px 0 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border-radius: 999px; padding: 6px 12px; font-size: 13px; }
+  .chip.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; max-height: 70vh; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { position: sticky; top: 0; background: var(--card); z-index: 1; white-space: nowrap; cursor: pointer; user-select: none; font-weight: 600; }
+  th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tbody tr:nth-child(even) { background: var(--row); }
+  .code { font-weight: 600; }
+  .nm { color: var(--muted); font-size: 13px; }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; margin: 0 4px 3px 0; }
+  .b-over { background: var(--bad-bg); color: var(--bad); }
+  .b-under { background: var(--warn-bg); color: var(--warn); }
+  .b-missing, .b-mid, .b-neg, .b-tag { background: var(--info-bg); color: var(--info); }
+  .pos { color: var(--bad); } .negv { color: var(--warn); } .zero { color: var(--muted); }
+  details { margin-top: 14px; color: var(--muted); font-size: 14px; }
+  summary { cursor: pointer; color: var(--ink); font-weight: 600; }
+  details p { margin: 8px 0; }
+  .empty { padding: 28px; text-align: center; color: var(--muted); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Stock Drift Check</h1>
+  <p class="sub">Ninja Mart · Control Tower · Warehouse 1A. Compare AC2, ITO and AMAST stock and see where the numbers disagree.</p>
+</header>
+
+<main>
+  <section class="card" aria-labelledby="up">
+    <h2 id="up">1. Upload the exports</h2>
+    <p class="step">Click a box or drop a file on it. The unit conversion list only needs uploading once, because this browser remembers it.</p>
+    <div class="slots" id="slots"></div>
+    <div class="actions">
+      <button class="primary" id="go" disabled>Compare</button>
+      <label class="inl">Stock date <input type="date" id="asof"></label>
+      <label class="inl"><input type="checkbox" id="incTest"> Include test products</label>
+      <button id="reset" type="button">Clear files</button>
+    </div>
+    <p class="privacy">Your files are read in this browser only. Nothing is uploaded to a server or stored there.</p>
+  </section>
+
+  <section id="results" hidden>
+    <div class="card">
+      <h2>2. Results</h2>
+      <p class="step" id="resultMeta"></p>
+      <div class="cards" id="stats"></div>
+      <div class="notes" id="notes"></div>
+    </div>
+
+    <div class="card">
+      <h2>Products that do not match</h2>
+      <div class="bar">
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="bar" style="margin-top:0">
+        <input type="search" id="q" placeholder="Search product code or name" aria-label="Search products">
+        <button id="dl" type="button">Download as Excel</button>
+        <span class="nm" id="count"></span>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr id="thead"></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div class="empty" id="empty" hidden>Nothing to show for this filter.</div>
+      </div>
+
+      <details>
+        <summary>How the numbers are worked out</summary>
+        <p><b>AC2</b> is the warehouse stock you can actually sell, in the same units as AMAST. Bundles and cartons are converted using the unit conversion list, locations and lots are added up per product, and damaged stock and stock inside its outbound life (near-expiry or expired) is taken off, as ITO does.</p>
+        <p><b>ITO</b> is “Available to sell” plus “Reserved”. <b>AMAST</b> is the “Fresh” figure. The “after orders” column is AMAST’s own Available figure, which is Fresh minus orders AMAST has already taken.</p>
+        <p><b>Δ AC2 → ITO</b> is ITO minus AC2. <b>Δ ITO → AMAST</b> is AMAST minus ITO. <b>AMAST vs AC2</b> is the total gap. A positive total means AMAST shows more than the warehouse has, so orders may fail. A negative total means stock is being missed, so sales may be lost.</p>
+        <p>Clearance products (starting with “(CLR)”) and test products are left out. Every difference is flagged, however small.</p>
+      </details>
+    </div>
+
+    <div class="card" id="cannotCard" hidden>
+      <h2>Could not be checked</h2>
+      <p class="step">These products have AC2 stock in a unit that is missing from the unit conversion list, so the numbers cannot be compared safely.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Product</th><th>AC2 quantity as exported</th><th class="num">ITO</th><th class="num">AMAST</th></tr></thead>
+          <tbody id="cannotBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="xlsx.full.min.js"></script>
+<script src="logic.js"></script>
+<script>
+(function () {
+  'use strict';
+  const L = window.StockLogic;
+  const $ = s => document.querySelector(s);
+  const el = (tag, attrs, ...kids) => {
+    const e = document.createElement(tag);
+    for (const k in (attrs || {})) {
+      if (k === 'class') e.className = attrs[k];
+      else if (k.startsWith('on')) e.addEventListener(k.slice(2), attrs[k]);
+      else e.setAttribute(k, attrs[k]);
+    }
+    for (const c of kids) e.append(c && c.nodeType ? c : document.createTextNode(c == null ? '' : c));
+    return e;
+  };
+
+  const SLOTS = [
+    { id: 'ac2', title: 'AC2 stock', hint: 'Inventory Balance Detail (.xlsx)',
+      req: ['Item', 'Available Qty', 'Location', 'Expiry Date'] },
+    { id: 'ito', title: 'ITO inventory', hint: 'Inventory export (.csv)',
+      req: ['AMAST/WAVE code', 'Available to sell (Base UOM Qty)', 'Reserved qty (Base UOM Qty)'] },
+    { id: 'amast', title: 'AMAST stock', hint: '1A active export (.csv)',
+      req: ['SKU_ID', 'FRESH', 'AVAILABLE'] },
+    { id: 'conv', title: 'Unit conversion list', hint: 'ITO product template (.csv). Upload once; this browser remembers it.',
+      req: ['Row type (H/D)', 'Product short code (AMAST code)', 'Base UOM on AC2', 'UOM on AC2', 'UOM conversion', 'Outbound Life'] }
+  ];
+  const STORE_KEY = 'stockmatch.conv.v1';
+  const state = { data: {}, conv: null, status: {}, result: null, filter: 'all', q: '', sort: { k: 'size', dir: -1 } };
+
+  // ---------- stock date default ----------
+  (function () {
+    const d = new Date();
+    const p = n => String(n).padStart(2, '0');
+    $('#asof').value = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  })();
+
+  // ---------- saved conversion list ----------
+  function loadSavedConv() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      const o = JSON.parse(raw);
+      state.conv = { map: L.convFromJSON(o.data), savedAt: o.savedAt, name: o.name };
+      state.status.conv = { ok: true, msg: o.name + ' · ' + state.conv.map.size.toLocaleString('en-US') + ' products · saved ' + fmtDate(o.savedAt) };
+    } catch (e) { /* storage blocked or corrupt: ask for the file again */ }
+  }
+  function saveConv(map, name) {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({ savedAt: Date.now(), name, data: L.convToJSON(map) }));
+    } catch (e) { /* private mode: still works for this visit */ }
+  }
+  const fmtDate = ms => new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  // ---------- slots ----------
+  function renderSlots() {
+    const root = $('#slots');
+    root.textContent = '';
+    for (const s of SLOTS) {
+      const st = state.status[s.id];
+      const input = el('input', { type: 'file', accept: '.csv,.xlsx,.xls', 'aria-label': s.title });
+      const box = el('div', { class: 'slot' + (st ? (st.ok ? ' ok' : ' err') : ''), tabindex: '0', role: 'button', 'aria-label': 'Choose file for ' + s.title },
+        el('div', { class: 't' }, s.title),
+        el('div', { class: 'h' }, s.hint),
+        el('div', { class: 's' }, st ? (st.ok ? '✓ ' : '✕ ') + st.msg : 'Click or drop file here'),
+        input);
+      box.addEventListener('click', e => { if (e.target !== input) input.click(); });
+      box.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+      input.addEventListener('change', () => { if (input.files[0]) handleFile(s, input.files[0]); });
+      box.addEventListener('dragover', e => { e.preventDefault(); box.classList.add('drag'); });
+      box.addEventListener('dragleave', () => box.classList.remove('drag'));
+      box.addEventListener('drop', e => { e.preventDefault(); box.classList.remove('drag'); if (e.dataTransfer.files[0]) handleFile(s, e.dataTransfer.files[0]); });
+      root.append(box);
+    }
+    const ready = SLOTS.every(s => (s.id === 'conv' ? state.conv : state.data[s.id]));
+    $('#go').disabled = !ready;
+  }
+
+  async function readRows(file) {
+    const buf = await file.arrayBuffer();
+    const isCsv = /\.csv$/i.test(file.name);
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true, raw: isCsv });
+    return L.rowsFromWorkbook(XLSX, wb);
+  }
+
+  async function handleFile(slot, file) {
+    state.status[slot.id] = { ok: true, msg: 'Reading ' + file.name + '…' };
+    renderSlots();
+    try {
+      const rows = await readRows(file);
+      if (!rows.length) throw new Error('The file has no rows.');
+      const have = Object.keys(rows[0]);
+      const miss = slot.req.filter(h => !have.includes(h));
+      if (miss.length) throw new Error('This does not look like the ' + slot.title + ' file. Missing column: ' + miss.join(', '));
+      if (slot.id === 'conv') {
+        const map = L.buildConv(rows);
+        if (!map.size) throw new Error('No products found in this file.');
+        state.conv = { map, savedAt: Date.now(), name: file.name };
+        saveConv(map, file.name);
+        state.status.conv = { ok: true, msg: file.name + ' · ' + map.size.toLocaleString('en-US') + ' products · saved ' + fmtDate(Date.now()) };
+      } else {
+        state.data[slot.id] = rows;
+        state.status[slot.id] = { ok: true, msg: file.name + ' · ' + rows.length.toLocaleString('en-US') + ' rows' };
+      }
+    } catch (e) {
+      if (slot.id !== 'conv') delete state.data[slot.id];
+      state.status[slot.id] = { ok: false, msg: e.message || 'Could not read this file.' };
+    }
+    renderSlots();
+  }
+
+  $('#reset').addEventListener('click', () => {
+    state.data = {};
+    for (const k of ['ac2', 'ito', 'amast']) delete state.status[k];
+    state.result = null;
+    $('#results').hidden = true;
+    renderSlots();
+  });
+
+  // ---------- compare ----------
+  $('#go').addEventListener('click', run);
+  $('#incTest').addEventListener('change', () => { if (state.result) run(); });
+  $('#asof').addEventListener('change', () => { if (state.result) run(); });
+
+  function run() {
+    const [y, m, d] = $('#asof').value.split('-').map(Number);
+    if (!y) { alert('Please choose the stock date.'); return; }
+    const asOf = Date.UTC(y, m - 1, d);
+    const ac2 = L.buildAc2(state.data.ac2, state.conv.map, asOf);
+    const ito = L.buildIto(state.data.ito);
+    const amast = L.buildAmast(state.data.amast);
+    const res = L.compare(ac2, ito, amast, { includeTest: $('#incTest').checked });
+    res.meta = { asOf: $('#asof').value, ito, amast, ac2count: ac2.size };
+    state.result = res;
+    state.filter = 'all';
+    state.q = '';
+    $('#q').value = '';
+    renderResults();
+    $('#results').hidden = false;
+    $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---------- results ----------
+  const CAT = {
+    over:    { label: 'AMAST too high', sub: 'failed-order risk', cls: 'b-over' },
+    under:   { label: 'AMAST too low', sub: 'lost-sales risk', cls: 'b-under' },
+    missing: { label: 'Missing in a system', sub: '', cls: 'b-missing' },
+    mid:     { label: 'Gap in the middle', sub: 'ITO differs, AMAST matches AC2', cls: 'b-mid' },
+    neg:     { label: 'Negative in AMAST', sub: '', cls: 'b-neg' }
+  };
+  const fmt = n => n == null ? '–' : Number(n).toLocaleString('en-US');
+  const sgn = n => n == null ? '–' : (n === 0 ? '0' : (n > 0 ? '+' : '−') + Math.abs(n).toLocaleString('en-US'));
+  const dcls = n => n == null || n === 0 ? 'zero' : (n > 0 ? 'pos' : 'negv');
+
+  function renderResults() {
+    const r = state.result;
+    const over = r.rows.filter(x => x.cat === 'over').length;
+    const under = r.rows.filter(x => x.cat === 'under').length;
+    const other = r.rows.length - over - under;
+    $('#resultMeta').textContent = 'Stock date ' + r.meta.asOf + ' · ' + r.checked.toLocaleString('en-US') + ' products checked';
+    const stats = $('#stats');
+    stats.textContent = '';
+    const stat = (cls, n, l) => stats.append(el('div', { class: 'stat ' + cls }, el('div', { class: 'n' }, n.toLocaleString('en-US')), el('div', { class: 'l' }, l)));
+    stat('', r.checked, 'Products checked');
+    stat('good', r.synced, 'In sync');
+    stat('over', over, 'AMAST too high (failed-order risk)');
+    stat('under', under, 'AMAST too low (lost-sales risk)');
+    stat('', other, 'Other (missing, negative, mid-chain)');
+    if (r.cannot.length) stat('', r.cannot.length, 'Could not be checked (units)');
+
+    const notes = $('#notes');
+    notes.textContent = '';
+    const note = (t, warn) => notes.append(el('div', { class: 'note' + (warn ? ' warn' : '') }, t));
+    if (r.hiddenClearance || r.hiddenTest) note('Left out: ' + r.hiddenClearance + ' clearance and ' + r.hiddenTest + ' test products.');
+    if (r.meta.ito.filtered1A) note('The ITO file has several warehouses. Only warehouse 1A rows were used.', true);
+    if (r.meta.ito.dup) note(r.meta.ito.dup + ' repeated product code(s) in the ITO file. The first row of each was used.', true);
+    if (r.meta.amast.dup) note(r.meta.amast.dup + ' repeated product code(s) in the AMAST file. The first row of each was used.', true);
+    note('Products missing from the AC2 file are counted as zero stock, because AC2 only lists locations that hold stock. Near-expiry is only worked out for products that have an outbound life in the unit conversion list.');
+
+    renderChips();
+    renderHead();
+    renderBody();
+    renderCannot();
+  }
+
+  function visibleRows() {
+    const r = state.result;
+    const q = state.q.trim().toUpperCase();
+    let rows = r.rows.filter(x => {
+      if (state.filter === 'neg') { if (!x.tags.includes('Negative in AMAST')) return false; }
+      else if (state.filter !== 'all' && x.cat !== state.filter) return false;
+      if (q && !(x.key.includes(q) || x.name.toUpperCase().includes(q))) return false;
+      return true;
+    });
+    const { k, dir } = state.sort;
+    rows = rows.slice().sort((a, b) => {
+      let av = a[k], bv = b[k];
+      if (k === 'key') return dir * String(av).localeCompare(String(bv));
+      if (k === 'cat') return dir * String(a.cat).localeCompare(String(b.cat));
+      if (k === 'where') return dir * String(a.where).localeCompare(String(b.where));
+      av = av == null ? -Infinity : av; bv = bv == null ? -Infinity : bv;
+      return dir * (av - bv);
+    });
+    return rows;
+  }
+
+  function renderChips() {
+    const r = state.result;
+    const cnt = c => r.rows.filter(x => c === 'neg' ? x.tags.includes('Negative in AMAST') : x.cat === c).length;
+    const defs = [['all', 'All (' + r.rows.length + ')'], ['over', 'AMAST too high (' + cnt('over') + ')'],
+      ['under', 'AMAST too low (' + cnt('under') + ')'], ['neg', 'Negative in AMAST (' + cnt('neg') + ')'],
+      ['missing', 'Missing in a system (' + cnt('missing') + ')'], ['mid', 'Gap in the middle (' + cnt('mid') + ')']];
+    const root = $('#chips');
+    root.textContent = '';
+    for (const [id, label] of defs) {
+      root.append(el('button', { class: 'chip' + (state.filter === id ? ' on' : ''), type: 'button',
+        onclick: () => { state.filter = id; renderChips(); renderBody(); } }, label));
+    }
+  }
+
+  const COLS = [
+    ['key', 'Product', false], ['cat', 'What it means', false], ['where', 'Where', false],
+    ['ac2', 'AC2', true], ['ito', 'ITO', true], ['amast', 'AMAST', true], ['amastAvail', 'AMAST after orders', true],
+    ['d1', 'Δ AC2 → ITO', true], ['d2', 'Δ ITO → AMAST', true], ['dE', 'AMAST vs AC2', true]
+  ];
+  function renderHead() {
+    const tr = $('#thead');
+    tr.textContent = '';
+    for (const [k, label, isNum] of COLS) {
+      const arrow = state.sort.k === k ? (state.sort.dir > 0 ? ' ▲' : ' ▼') : '';
+      tr.append(el('th', { class: isNum ? 'num' : '', title: 'Sort by ' + label,
+        onclick: () => { state.sort = { k, dir: state.sort.k === k ? -state.sort.dir : (isNum ? -1 : 1) }; renderHead(); renderBody(); } }, label + arrow));
+    }
+  }
+
+  function renderBody() {
+    const rows = visibleRows();
+    const tb = $('#tbody');
+    tb.textContent = '';
+    for (const x of rows) {
+      const c = CAT[x.cat];
+      const what = el('td', {}, el('span', { class: 'badge ' + c.cls }, c.label));
+      if (c.sub && x.cat !== 'mid') what.append(el('div', { class: 'nm' }, c.sub));
+      for (const t of x.tags) what.append(el('div', {}, el('span', { class: 'badge b-tag' }, t)));
+      tb.append(el('tr', {},
+        el('td', {}, el('div', { class: 'code' }, x.key), el('div', { class: 'nm' }, x.name)),
+        what,
+        el('td', {}, x.where),
+        el('td', { class: 'num' }, fmt(x.ac2 == null ? 0 : x.ac2)),
+        el('td', { class: 'num' }, fmt(x.ito)),
+        el('td', { class: 'num' }, fmt(x.amast)),
+        el('td', { class: 'num ' + (x.amastAvail < 0 ? 'negv' : '') }, fmt(x.amastAvail)),
+        el('td', { class: 'num ' + dcls(x.d1) }, sgn(x.d1)),
+        el('td', { class: 'num ' + dcls(x.d2) }, sgn(x.d2)),
+        el('td', { class: 'num ' + dcls(x.dE) }, sgn(x.dE))));
+    }
+    $('#empty').hidden = rows.length > 0;
+    $('#count').textContent = rows.length.toLocaleString('en-US') + ' of ' + state.result.rows.length.toLocaleString('en-US') + ' shown';
+  }
+
+  function renderCannot() {
+    const r = state.result;
+    $('#cannotCard').hidden = !r.cannot.length;
+    const tb = $('#cannotBody');
+    tb.textContent = '';
+    for (const x of r.cannot) {
+      tb.append(el('tr', {},
+        el('td', {}, el('div', { class: 'code' }, x.key), el('div', { class: 'nm' }, x.name)),
+        el('td', {}, x.bad), el('td', { class: 'num' }, fmt(x.ito)), el('td', { class: 'num' }, fmt(x.amast))));
+    }
+  }
+
+  $('#q').addEventListener('input', e => { state.q = e.target.value; renderBody(); });
+
+  // ---------- download ----------
+  $('#dl').addEventListener('click', () => {
+    const r = state.result;
+    if (!r) return;
+    const label = x => CAT[x.cat].label + (CAT[x.cat].sub ? ' (' + CAT[x.cat].sub + ')' : '');
+    const mism = visibleRows().map(x => ({
+      'Product code': x.key, 'Product name': x.name, 'What it means': label(x), 'Notes': x.tags.join('; '), 'Where': x.where,
+      'AC2 (sellable)': x.ac2 == null ? 0 : x.ac2, 'AC2 near-expiry (not sellable)': x.ac2Near,
+      'ITO (available + reserved)': x.ito, 'AMAST fresh': x.amast, 'AMAST pending orders': x.pending, 'AMAST after orders': x.amastAvail,
+      'Gap AC2 to ITO': x.d1, 'Gap ITO to AMAST': x.d2, 'AMAST vs AC2': x.dE
+    }));
+    const cannot = r.cannot.map(x => ({ 'Product code': x.key, 'Product name': x.name, 'AC2 quantity as exported': x.bad, 'ITO': x.ito, 'AMAST': x.amast }));
+    const wb = XLSX.utils.book_new();
+    const summary = [
+      { Item: 'Stock date', Value: r.meta.asOf }, { Item: 'Products checked', Value: r.checked }, { Item: 'In sync', Value: r.synced },
+      { Item: 'Products that do not match (this list)', Value: mism.length }, { Item: 'Could not be checked (units)', Value: r.cannot.length },
+      { Item: 'Left out: clearance', Value: r.hiddenClearance }, { Item: 'Left out: test products', Value: r.hiddenTest }
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), 'Summary');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mism.length ? mism : [{ Note: 'Nothing to show' }]), 'Mismatches');
+    if (cannot.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cannot), 'Could not check');
+    XLSX.writeFile(wb, 'stock_drift_' + r.meta.asOf + '.xlsx');
+  });
+
+  loadSavedConv();
+  renderSlots();
+})();
+</script>
+</body>
+</html>
