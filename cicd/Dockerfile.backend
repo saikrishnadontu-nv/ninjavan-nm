@@ -1,9 +1,15 @@
 # Backend image for Substrait: serves the static page and GET /health on port 8000.
 # Built from the repo root, so COPY paths are repo-relative.
+# Floating base tag on purpose: upstream rebuilds python:3.12-slim with Debian security fixes,
+# so it is never pinned to a minor or patch release.
 FROM python:3.12-slim
-# Apply outstanding distro security updates (the platform scans this image).
+# Apply every outstanding Debian security update (CVE-2026-85091 in zlib1g is fixed by
+# upgrading, never by pinning a package version). The explicit zlib1g upgrade is a no-op
+# when apt-get upgrade has already moved it. No packages are removed: the app is plain
+# Python standard library and zlib1g is needed by Python itself.
 RUN apt-get update \
  && apt-get upgrade -y \
+ && apt-get install -y --only-upgrade zlib1g \
  && rm -rf /var/lib/apt/lists/*
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app
